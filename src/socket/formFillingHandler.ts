@@ -3,12 +3,43 @@ import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import { FormModel } from "../models/nosql/form.model";
 import { ResponseModel } from "../models/nosql/response.model";
-import redisClient from "../redis/redisClient";
+import { createClient } from "redis";
 
 const prisma = new PrismaClient();
 const formResponses: Record<string, any> = {};
 
-export function registerFormFillingHandlers(io: Server) {
+const redisClient = createClient({
+  url: process.env.REDIS_URL || "redis://localhost:6379",
+});
+const redisSubscriber = redisClient.duplicate();
+
+// ✅ Now accepts `io`
+async function setupRedis(io: Server) {
+  await redisClient.connect();
+  await redisSubscriber.connect();
+
+  await redisClient.configSet("notify-keyspace-events", "Ex");
+
+  redisSubscriber.pSubscribe("__keyevent@0__:expired", async (key) => {
+    const match = key.match(/^lock:(.+?):(.+)$/);
+    if (match) {
+      const [, formId, field] = match;
+
+      // ✅ Now works: using passed `io` to emit unlock
+      io.to(formId).emit("lock-field", {
+        field,
+        userId: null,
+        name: null,
+      });
+    }
+  });
+
+  console.log("✅ Redis and subscriber ready");
+}
+
+export async function registerFormFillingHandlers(io: Server) {
+  await setupRedis(io); // 👈 Pass io to setupRedis
+
   io.on("connection", (socket: Socket) => {
     const token = socket.handshake.auth?.token;
     if (!token) {
@@ -67,7 +98,7 @@ export function registerFormFillingHandlers(io: Server) {
 
       if (!existing || existing === userId) {
         const user = await prisma.user.findUnique({ where: { id: userId } });
-        await redisClient.set(lockKey, userId, { EX: 3 });
+        await redisClient.set(lockKey, userId, { EX: 3 }); // 3s lock
 
         io.to(formId).emit("lock-field", {
           field,
@@ -96,6 +127,7 @@ export function registerFormFillingHandlers(io: Server) {
       formResponses[formId][field] = value;
 
       await redisClient.set(lockKey, userId, { EX: 3 });
+
       socket.to(formId).emit("update-answer", { field, value });
 
       await ResponseModel.findOneAndUpdate(

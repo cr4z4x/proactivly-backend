@@ -19,6 +19,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped # Ensure the service restarts unless stopped manually
 
   # MongoDB Service
   mongo_db:
@@ -36,7 +37,24 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped # Ensure the service restarts unless stopped manually
+
+  # Redis Service (Added)
+  redis_server:
+    image: redis:latest # Use the latest Redis image
+    container_name: redis-server # Set the container name as requested
+    ports:
+      - "6379:6379" # Map host port 6379 to container port 6379
+    volumes:
+      - redis_data:/data # Persist Redis data
+    healthcheck: # Healthcheck to ensure Redis is ready
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped # Ensure the service restarts unless stopped manually
 
 volumes:
   postgres_data: # Define named volume for PostgreSQL
   mongodb_data: # Define named volume for MongoDB
+  redis_data: # Define named volume for Redis (Added)
