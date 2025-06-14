@@ -1,0 +1,51 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // Defined in .env
+}
+
+enum FormRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  name          String
+  password_hash String
+  created_at    DateTime      @default(now())
+
+  formAccess    FormAccess[]
+  createdForms  Form[]        @relation("Creator")
+}
+
+model Form {
+  id         String        @id @default(uuid())
+  title      String
+  createdBy  String
+  createdAt  DateTime      @default(now())
+
+  // Relations
+  creator    User          @relation("Creator", fields: [createdBy], references: [id])
+  access     FormAccess[]
+}
+
+model FormAccess {
+  id        String     @id @default(uuid())
+  userId    String
+  formId    String
+  role      FormRole
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id])
+  form      Form       @relation(fields: [formId], references: [id])
+
+  @@unique([userId, formId]) // Prevent duplicate access entries
+}

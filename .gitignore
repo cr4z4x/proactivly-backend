@@ -1,0 +1,38 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Optional npm cache
+.npm/
+
+# Coverage directory used by testing tools
+coverage/
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# Optional build artifacts
+dist/
+build/
+
+# pm2 process logs
+pids/
+*.pid
+*.seed
+
+# Debug
+*.tgz
